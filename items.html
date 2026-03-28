@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Items</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <div id="sidebarMount"></div>
+    <main class="main">
+      <section class="panel">
+        <div class="section-head"><div><h2 class="section-title">จัดการรายการสินค้า</h2><div class="section-subtitle">เพิ่มสินค้าใหม่ ลบสินค้าเก่า และเลือกสินค้าที่ต้องการเปิดรายละเอียด</div></div></div>
+        <form class="form-card" id="itemForm">
+          <div class="compact-grid">
+            <div class="field"><label for="itemId">รหัส</label><input id="itemId" required></div>
+            <div class="field"><label for="itemName">ชื่อรายการ</label><input id="itemName" required></div>
+            <div class="field"><label for="itemCategory">ประเภท</label><select id="itemCategory"><option>อุปกรณ์</option><option>วัตถุดิบ</option></select></div>
+            <div class="field"><label for="itemUnit">หน่วย</label><input id="itemUnit" required></div>
+            <div class="field"><label for="itemOpening">สต๊อกตั้งต้น</label><input id="itemOpening" type="number" min="0" value="0" required></div>
+            <div class="field"><label for="itemReorder">จุดสั่งซื้อ</label><input id="itemReorder" type="number" min="0" value="0" required></div>
+            <div class="field"><label for="itemPrice">ราคาต่อหน่วย</label><input id="itemPrice" type="number" min="0" value="0" required></div>
+            <div class="field"><label for="itemDesc">คำอธิบาย</label><input id="itemDesc"></div>
+          </div>
+          <button class="primary-button" type="submit">เพิ่มรายการ</button>
+        </form>
+      </section>
+      <section class="content-grid">
+        <section class="panel"><div class="tile-grid" id="itemGrid"></div></section>
+        <section class="panel">
+          <div class="section-head"><div><h2 class="section-title">สรุปรายการทั้งหมด</h2><div class="section-subtitle">ใช้ปุ่มดูเพื่อไปหน้ารายละเอียด หรือปุ่มลบเพื่อล้างรายการนั้นออกจากระบบ</div></div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>รหัส</th><th>ชื่อ</th><th>ประเภท</th><th>คงเหลือ</th><th>จัดการ</th></tr></thead><tbody id="itemsTableBody"></tbody></table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="shared.js"></script>
+  <script>
+    document.getElementById("sidebarMount").outerHTML = renderSidebar("items.html");
+    wireCommonActions(toast);
+    const itemGrid = document.getElementById("itemGrid");
+    const body = document.getElementById("itemsTableBody");
+    function renderPage() {
+      itemGrid.innerHTML = app.state.items.map((item) => {
+        const metric = app.metrics(item.id);
+        return `<button class="tile-button" type="button" data-open="${item.id}"><div class="tile-image"></div><div class="tile-content"><div class="${metric.currentStock <= item.reorderPoint ? "status-pill warn" : "status-pill"}">${metric.currentStock <= item.reorderPoint ? "ต้องสั่งเพิ่ม" : "พร้อมใช้งาน"}</div><div class="tile-meta">${item.id} · ${item.category}</div><h3 class="tile-title">${item.name}</h3><div class="tile-meta">คงเหลือ ${metric.currentStock} ${item.unit}</div></div></button>`;
+      }).join("");
+      body.innerHTML = app.state.items.map((item) => {
+        const metric = app.metrics(item.id);
+        return `<tr><td>${item.id}</td><td>${item.name}</td><td>${item.category}</td><td>${metric.currentStock} ${item.unit}</td><td><div class="button-row"><button class="mini-button" type="button" data-open="${item.id}">ดู</button><button class="mini-button danger" type="button" data-delete="${item.id}">ลบ</button></div></td></tr>`;
+      }).join("");
+    }
+    document.getElementById("itemForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      try {
+        app.addItem({ id: itemId.value.trim().toUpperCase(), name: itemName.value.trim(), category: itemCategory.value, unit: itemUnit.value.trim(), openingStock: Number(itemOpening.value) || 0, reorderPoint: Number(itemReorder.value) || 0, price: Number(itemPrice.value) || 0, description: itemDesc.value.trim() || "รายการที่เพิ่มใหม่" });
+        event.target.reset();
+        itemCategory.value = "อุปกรณ์";
+        itemOpening.value = 0; itemReorder.value = 0; itemPrice.value = 0;
+        renderPage();
+        toast("เพิ่มรายการสินค้าเรียบร้อย");
+      } catch {
+        toast("รหัสซ้ำหรือข้อมูลไม่ครบ");
+      }
+    });
+    document.addEventListener("click", (event) => {
+      const open = event.target.closest("[data-open]");
+      if (open) { app.selectItem(open.dataset.open); location.href = "detail.html"; return; }
+      const del = event.target.closest("[data-delete]");
+      if (del) {
+        const item = app.findItem(del.dataset.delete);
+        if (!item) return;
+        if (!confirm(`ต้องการลบ ${item.name} หรือไม่`)) return;
+        try { app.deleteItem(del.dataset.delete); renderPage(); toast("ลบรายการแล้ว"); } catch { toast("ต้องเหลืออย่างน้อย 1 รายการ"); }
+      }
+    });
+    renderPage();
+  </script>
+</body>
+</html>

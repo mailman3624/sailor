@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sailor Piece Start</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <div id="sidebarMount"></div>
+    <main class="main">
+      <section class="hero">
+        <div>
+          <h2>ระบบแยกหลายหน้า ใช้งานง่ายกว่าเดิม</h2>
+          <p>ตอนนี้แต่ละงานแยกเป็นคนละหน้าแล้ว เช่น dashboard, รายการสินค้า, รายละเอียด, ธุรกรรม และเช็กสต๊อก เพื่อให้หาเครื่องมือได้ง่ายและไม่ต้องเลื่อนยาวหน้าเดียว</p>
+          <div class="button-row">
+            <a class="primary-button" href="dashboard.html">เปิด Dashboard</a>
+            <a class="secondary-button" href="items.html">จัดการรายการสินค้า</a>
+          </div>
+        </div>
+        <div class="hero-panel">
+          <div class="hero-panel-grid" id="startHeroStats"></div>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2 class="section-title">ทางลัด</h2>
+              <div class="section-subtitle">เลือกเข้าหน้าตามงานที่กำลังทำ</div>
+            </div>
+          </div>
+          <div class="tile-grid">
+            <a class="tile-button" href="dashboard.html"><div class="tile-image"></div><div class="tile-content"><div class="tile-title">Dashboard</div><div class="tile-meta">ดูยอดขาย สินค้าเคลื่อนไหว และของใกล้หมด</div></div></a>
+            <a class="tile-button" href="items.html"><div class="tile-image"></div><div class="tile-content"><div class="tile-title">รายการสินค้า</div><div class="tile-meta">เพิ่ม ลบ และเลือกสินค้าที่ต้องการดู</div></div></a>
+            <a class="tile-button" href="detail.html"><div class="tile-image"></div><div class="tile-content"><div class="tile-title">รายละเอียด</div><div class="tile-meta">ดูวัตถุดิบที่ใช้และขั้นตอนการทำ</div></div></a>
+            <a class="tile-button" href="transactions.html"><div class="tile-image"></div><div class="tile-content"><div class="tile-title">ธุรกรรม</div><div class="tile-meta">บันทึกรับเข้า ขายออก หรือเบิกใช้</div></div></a>
+            <a class="tile-button" href="daily.html"><div class="tile-image"></div><div class="tile-content"><div class="tile-title">เช็กสต๊อก</div><div class="tile-meta">บันทึกการนับจริงและดูรายการล่าสุด</div></div></a>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2 class="section-title">กิจกรรมล่าสุด</h2>
+              <div class="section-subtitle">ดึงจากข้อมูลชุดเดียวกับทุกหน้า</div>
+            </div>
+          </div>
+          <div class="grid" id="recentStartLogs"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="shared.js"></script>
+  <script>
+    document.getElementById("sidebarMount").outerHTML = renderSidebar("index.html");
+    wireCommonActions(toast);
+    const stats = app.dashboardMetrics();
+    document.getElementById("startHeroStats").innerHTML = `
+      <div class="hero-stat"><span class="metric-label">จำนวนไอดี</span><strong>${stats.itemCount}</strong><span class="small-text">รายการทั้งหมดในระบบ</span></div>
+      <div class="hero-stat"><span class="metric-label">ต้องสั่งเพิ่ม</span><strong>${stats.reorderCount}</strong><span class="small-text">เช็กจากจุดสั่งซื้อ</span></div>
+      <div class="hero-stat"><span class="metric-label">ยอดขายรวม</span><strong>${app.formatCurrency(stats.totalSales)}</strong><span class="small-text">คำนวณจากประวัติขายทั้งหมด</span></div>
+      <div class="hero-stat"><span class="metric-label">คงเหลือรวม</span><strong>${stats.totalCurrent}</strong><span class="small-text">รวมทุกไอดี</span></div>
+    `;
+    const logs = app.recentActivity().slice(0, 6);
+    document.getElementById("recentStartLogs").innerHTML = logs.map((log) => `<div class="log-item"><strong>${log.title}</strong><div class="small-text">${app.formatDate(log.date)}</div><div>${log.desc}</div></div>`).join("");
+  </script>
+</body>
+</html>

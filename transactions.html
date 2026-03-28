@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transactions</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <div id="sidebarMount"></div>
+    <main class="main">
+      <section class="panel">
+        <div class="section-head"><div><h2 class="section-title">ธุรกรรมสต๊อก</h2><div class="section-subtitle">แยกหน้าสำหรับบันทึกของเข้าและขายหรือเบิกออกโดยตรง</div></div></div>
+        <div class="forms-grid">
+          <form class="form-card" id="stockInForm">
+            <h3 class="section-title">เพิ่มสต๊อกเข้า</h3>
+            <div class="form-grid">
+              <div class="field"><label for="stockInItem">รายการ</label><select id="stockInItem"></select></div>
+              <div class="field"><label for="stockInDate">วันที่</label><input id="stockInDate" type="date"></div>
+              <div class="field"><label for="stockInQty">จำนวน</label><input id="stockInQty" type="number" min="1" value="1"></div>
+              <div class="field full"><label for="stockInNote">หมายเหตุ</label><textarea id="stockInNote"></textarea></div>
+            </div>
+            <button class="primary-button" type="submit">บันทึกรับเข้า</button>
+          </form>
+          <form class="form-card" id="stockOutForm">
+            <h3 class="section-title">ขายออกหรือเบิกใช้</h3>
+            <div class="form-grid">
+              <div class="field"><label for="stockOutItem">รายการ</label><select id="stockOutItem"></select></div>
+              <div class="field"><label for="stockOutDate">วันที่</label><input id="stockOutDate" type="date"></div>
+              <div class="field"><label for="stockOutQty">จำนวน</label><input id="stockOutQty" type="number" min="1" value="1"></div>
+              <div class="field"><label for="stockOutPrice">ราคาต่อหน่วย</label><input id="stockOutPrice" type="number" min="0" value="0"></div>
+              <div class="field"><label for="stockOutChannel">ช่องทาง</label><input id="stockOutChannel"></div>
+              <div class="field full"><label for="stockOutNote">หมายเหตุ</label><textarea id="stockOutNote"></textarea></div>
+            </div>
+            <button class="primary-button" type="submit">บันทึกขายหรือเบิก</button>
+          </form>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><h2 class="section-title">ธุรกรรมล่าสุด</h2></div></div>
+        <div class="grid" id="recentTransactions"></div>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="shared.js"></script>
+  <script>
+    document.getElementById("sidebarMount").outerHTML = renderSidebar("transactions.html");
+    wireCommonActions(toast);
+    app.populateItemOptions(stockInItem); app.populateItemOptions(stockOutItem);
+    stockInDate.value = app.today(); stockOutDate.value = app.today();
+    stockOutItem.addEventListener("change", () => stockOutPrice.value = app.findItem(stockOutItem.value)?.price || 0);
+    stockOutPrice.value = app.selectedItem()?.price || 0;
+    stockInForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      app.addStockIn({ itemId: stockInItem.value, date: stockInDate.value, qty: Number(stockInQty.value), note: stockInNote.value.trim() });
+      event.target.reset(); stockInDate.value = app.today(); app.populateItemOptions(stockInItem); toast("บันทึกรับเข้าเรียบร้อย"); renderLogs();
+    });
+    stockOutForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const metric = app.metrics(stockOutItem.value);
+      if (Number(stockOutQty.value) > metric.currentStock) return toast("จำนวนมากกว่าสต๊อกคงเหลือ");
+      app.addStockOut({ itemId: stockOutItem.value, date: stockOutDate.value, qty: Number(stockOutQty.value), price: Number(stockOutPrice.value), channel: stockOutChannel.value.trim() || "ไม่ระบุ", note: stockOutNote.value.trim() });
+      event.target.reset(); stockOutDate.value = app.today(); app.populateItemOptions(stockOutItem); stockOutPrice.value = app.selectedItem()?.price || 0; toast("บันทึกขายหรือเบิกเรียบร้อย"); renderLogs();
+    });
+    function renderLogs() {
+      document.getElementById("recentTransactions").innerHTML = app.recentActivity().slice(0, 10).map((log) => `<div class="log-item"><strong>${log.title}</strong><div class="small-text">${app.formatDate(log.date)}</div><div>${log.desc}</div></div>`).join("");
+    }
+    renderLogs();
+  </script>
+</body>
+</html>
