@@ -1,10 +1,43 @@
-﻿"use client";
-import { FormEvent } from "react";
-import { AppShell, todayString } from "@/components/app-shell";
-import { useInventory } from "@/components/inventory-provider";
-export default function TransactionsPage() {
-  const { state, addStockIn, addStockOut } = useInventory();
-  function inSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); addStockIn({ itemId: String(form.get("itemId")), date: String(form.get("date")), qty: Number(form.get("qty")), note: String(form.get("note") || "") }); event.currentTarget.reset(); }
-  function outSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); addStockOut({ itemId: String(form.get("itemId")), date: String(form.get("date")), qty: Number(form.get("qty")), price: Number(form.get("price")), channel: String(form.get("channel") || "ไม่ระบุ"), note: String(form.get("note") || "") }); event.currentTarget.reset(); }
-  return <AppShell><section className="panel"><div className="forms-grid"><form className="form-card" onSubmit={inSubmit}><h2 className="section-title">เพิ่มสต๊อกเข้า</h2><div className="form-grid"><div className="field"><label>รายการ</label><select name="itemId">{state.items.map((item) => <option key={item.id} value={item.id}>{item.id} · {item.name}</option>)}</select></div><div className="field"><label>วันที่</label><input name="date" type="date" defaultValue={todayString()} /></div><div className="field"><label>จำนวน</label><input name="qty" type="number" min="1" defaultValue="1" /></div><div className="field full"><label>หมายเหตุ</label><textarea name="note" /></div></div><button className="primary-button">บันทึกรับเข้า</button></form><form className="form-card" onSubmit={outSubmit}><h2 className="section-title">ขายออกหรือเบิกใช้</h2><div className="form-grid"><div className="field"><label>รายการ</label><select name="itemId">{state.items.map((item) => <option key={item.id} value={item.id}>{item.id} · {item.name}</option>)}</select></div><div className="field"><label>วันที่</label><input name="date" type="date" defaultValue={todayString()} /></div><div className="field"><label>จำนวน</label><input name="qty" type="number" min="1" defaultValue="1" /></div><div className="field"><label>ราคาต่อหน่วย</label><input name="price" type="number" min="0" defaultValue="0" /></div><div className="field"><label>ช่องทาง</label><input name="channel" /></div><div className="field full"><label>หมายเหตุ</label><textarea name="note" /></div></div><button className="primary-button">บันทึกขายหรือเบิก</button></form></div></section></AppShell>;
+import { createStockInAction, createStockOutAction } from "@/server/inventory/actions";
+import { AppShell, todayString } from "@/features/inventory/components/app-shell";
+import { getItemSummaries } from "@/server/inventory/db";
+
+export const dynamic = "force-dynamic";
+
+export default async function TransactionsPage() {
+  const items = await getItemSummaries();
+
+  return (
+    <AppShell currentPath="/transactions">
+      <section className="panel">
+        <div className="forms-grid">
+          <form className="form-card" action={createStockInAction}>
+            <input type="hidden" name="redirectTo" value="/transactions" />
+            <h2 className="section-title">Stock in</h2>
+            <div className="form-grid">
+              <div className="field"><label>Item</label><select name="itemCode">{items.map((item) => <option key={item.itemCode} value={item.itemCode}>{item.itemCode} ? {item.name}</option>)}</select></div>
+              <div className="field"><label>Date</label><input name="date" type="date" defaultValue={todayString()} /></div>
+              <div className="field"><label>Quantity</label><input name="qty" type="number" min="1" defaultValue="1" /></div>
+              <div className="field full"><label>Note</label><textarea name="note" /></div>
+            </div>
+            <button className="primary-button" type="submit">Save stock in</button>
+          </form>
+
+          <form className="form-card" action={createStockOutAction}>
+            <input type="hidden" name="redirectTo" value="/transactions" />
+            <h2 className="section-title">Stock out or sale</h2>
+            <div className="form-grid">
+              <div className="field"><label>Item</label><select name="itemCode">{items.map((item) => <option key={item.itemCode} value={item.itemCode}>{item.itemCode} ? {item.name}</option>)}</select></div>
+              <div className="field"><label>Date</label><input name="date" type="date" defaultValue={todayString()} /></div>
+              <div className="field"><label>Quantity</label><input name="qty" type="number" min="1" defaultValue="1" /></div>
+              <div className="field"><label>Price per unit</label><input name="price" type="number" min="0" defaultValue="0" /></div>
+              <div className="field"><label>Channel</label><input name="channel" /></div>
+              <div className="field full"><label>Note</label><textarea name="note" /></div>
+            </div>
+            <button className="primary-button" type="submit">Save stock out</button>
+          </form>
+        </div>
+      </section>
+    </AppShell>
+  );
 }

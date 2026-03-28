@@ -1,7 +1,61 @@
-﻿"use client";
 import Link from "next/link";
-import { AppShell, HeroStats, useComputed } from "@/components/app-shell";
-export default function HomePage() {
-  const { recent } = useComputed();
-  return <AppShell><section className="hero"><div><h2>พร้อม deploy ขึ้น Vercel แบบหลายหน้า</h2><p>แอปนี้เขียนด้วย Next.js และ TypeScript แล้ว เหมาะกับ Vercel ตรงกว่า HTML ล้วน และยังเก็บข้อมูลใน localStorage เหมือนเดิม</p><div className="button-row"><Link className="primary-button" href="/dashboard">เปิด Dashboard</Link><Link className="secondary-button" href="/items">จัดการรายการสินค้า</Link></div></div><HeroStats /></section><section className="content-grid"><section className="panel"><div className="section-head"><div><h2 className="section-title">ทางลัด</h2><div className="section-subtitle">เข้าแต่ละหน้าตามงานที่กำลังทำ</div></div></div><div className="tile-grid"><Link className="tile-button" href="/dashboard"><div className="tile-image" /><div className="tile-content"><h3 className="tile-title">Dashboard</h3><div className="tile-meta">ดูยอดขายและภาพรวมสต๊อก</div></div></Link><Link className="tile-button" href="/items"><div className="tile-image" /><div className="tile-content"><h3 className="tile-title">รายการสินค้า</h3><div className="tile-meta">เพิ่ม ลบ และเลือกสินค้า</div></div></Link><Link className="tile-button" href="/detail"><div className="tile-image" /><div className="tile-content"><h3 className="tile-title">รายละเอียด</h3><div className="tile-meta">วัตถุดิบและขั้นตอนการทำ</div></div></Link><Link className="tile-button" href="/transactions"><div className="tile-image" /><div className="tile-content"><h3 className="tile-title">ธุรกรรม</h3><div className="tile-meta">บันทึกรับเข้าและขายออก</div></div></Link></div></section><section className="panel"><div className="section-head"><div><h2 className="section-title">กิจกรรมล่าสุด</h2></div></div><div className="grid">{recent.slice(0, 6).map((log, i) => <div key={i} className="log-item"><strong>{log.title}</strong><div className="small-text">{log.date}</div><div>{log.desc}</div></div>)}</div></section></section></AppShell>;
+import { AppShell, HeroStats, formatDate } from "@/features/inventory/components/app-shell";
+import { getDashboardData } from "@/server/inventory/db";
+
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const data = await getDashboardData();
+
+  return (
+    <AppShell currentPath="/">
+      <section className="hero">
+        <div>
+          <h2>Inventory and sales system on a real database</h2>
+          <p>This version reads directly from Supabase PostgreSQL for items, stock in, stock out, and daily stock checks.</p>
+          <div className="button-row">
+            <Link className="primary-button" href="/dashboard">Open dashboard</Link>
+            <Link className="secondary-button" href="/items">Manage items</Link>
+          </div>
+        </div>
+        <HeroStats data={data} />
+      </section>
+
+      <section className="content-grid">
+        <section className="panel">
+          <div className="section-head">
+            <div>
+              <h2 className="section-title">Shortcuts</h2>
+              <div className="section-subtitle">Go straight to the task you want to do.</div>
+            </div>
+          </div>
+          <div className="tile-grid">
+            <Link className="tile-button" href="/dashboard"><div className="tile-image" /><div className="tile-content"><h3 className="tile-title">Dashboard</h3><div className="tile-meta">Sales and stock overview</div></div></Link>
+            <Link className="tile-button" href="/items"><div className="tile-image" /><div className="tile-content"><h3 className="tile-title">Items</h3><div className="tile-meta">Create and remove item master data</div></div></Link>
+            <Link className="tile-button" href="/detail"><div className="tile-image" /><div className="tile-content"><h3 className="tile-title">Details</h3><div className="tile-meta">Recipes and steps</div></div></Link>
+            <Link className="tile-button" href="/transactions"><div className="tile-image" /><div className="tile-content"><h3 className="tile-title">Transactions</h3><div className="tile-meta">Record incoming and outgoing stock</div></div></Link>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="section-head">
+            <div>
+              <h2 className="section-title">Recent activity</h2>
+            </div>
+          </div>
+          <div className="grid">
+            {data.recent.slice(0, 6).map((log) => (
+              <div key={`${log.kind}-${log.itemCode}-${log.eventAt}`} className="log-item">
+                <strong>{log.itemCode} ? {log.itemName}</strong>
+                <div className="small-text">{formatDate(log.eventAt)}</div>
+                <div>
+                  {log.kind === "stock_in" ? "Stock in" : log.kind === "stock_out" ? "Stock out" : "Daily check"} {log.quantity}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </section>
+    </AppShell>
+  );
 }

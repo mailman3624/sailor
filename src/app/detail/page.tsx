@@ -1,11 +1,94 @@
-﻿"use client";
-import { AppShell } from "@/components/app-shell";
-import { useInventory } from "@/components/inventory-provider";
-export default function DetailPage() {
-  const { state, selectItem, deleteItem } = useInventory();
-  const item = state.items.find((entry) => entry.id === state.selectedItemId) || state.items[0];
-  const stockIn = state.stockIns.filter((e) => e.itemId === item.id).reduce((s, e) => s + e.qty, 0);
-  const stockOut = state.stockOuts.filter((e) => e.itemId === item.id).reduce((s, e) => s + e.qty, 0);
-  const currentStock = item.openingStock + stockIn - stockOut;
-  return <AppShell><section className="panel"><div className="button-row"><select value={item.id} onChange={(e) => selectItem(e.target.value)}>{state.items.map((entry) => <option key={entry.id} value={entry.id}>{entry.id} · {entry.name}</option>)}</select><button className="danger-button" onClick={() => { if (confirm(`ลบ ${item.name} หรือไม่`)) deleteItem(item.id); }}>ลบรายการนี้</button></div></section><section className="panel"><div className="detail-layout"><div className="detail-art" /><div className="grid"><span className={currentStock <= item.reorderPoint ? "status-pill warn" : "status-pill"}>{currentStock <= item.reorderPoint ? "ต้องสั่งเพิ่ม" : "พร้อมใช้งาน"}</span><h2 className="section-title">{item.id} · {item.name}</h2><div className="muted">{item.description}</div><div className="detail-grid"><div className="mini-card"><div className="metric-label">คงเหลือ</div><strong>{currentStock} {item.unit}</strong></div><div className="mini-card"><div className="metric-label">จุดสั่งซื้อ</div><strong>{item.reorderPoint} {item.unit}</strong></div><div className="mini-card"><div className="metric-label">ราคาต่อหน่วย</div><strong>{item.price}</strong></div></div></div></div></section><section className="content-grid"><section className="panel"><h2 className="section-title">วัตถุดิบที่ต้องใช้</h2><ul className="recipe-list">{item.recipe.map((entry) => <li key={entry.id}><span>{entry.name}</span><strong>{entry.qty} {entry.unit}</strong></li>)}</ul></section><section className="panel"><h2 className="section-title">ขั้นตอนการทำ</h2><ol className="step-list">{item.steps.map((step, index) => <li key={index}>{step}</li>)}</ol></section></section></AppShell>;
+import Link from "next/link";
+import { deleteItemAction } from "@/server/inventory/actions";
+import { AppShell, categoryLabel, formatCurrency } from "@/features/inventory/components/app-shell";
+import { getItemDetail } from "@/server/inventory/db";
+
+export const dynamic = "force-dynamic";
+
+export default async function DetailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ item?: string }>;
+}) {
+  const params = await searchParams;
+  const { current, items } = await getItemDetail(params.item);
+
+  if (!current) {
+    return (
+      <AppShell currentPath="/detail">
+        <section className="panel">
+          <h2 className="section-title">No items found</h2>
+          <p>Create at least one item first, then come back to manage recipes and process steps.</p>
+        </section>
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell currentPath="/detail">
+      <section className="panel">
+        <div className="button-row">
+          {items.map((item) => (
+            <Link key={item.itemCode} className={`secondary-button ${item.itemCode === current.itemCode ? "active" : ""}`} href={`/detail?item=${encodeURIComponent(item.itemCode)}`}>
+              {item.itemCode}
+            </Link>
+          ))}
+          <form action={deleteItemAction}>
+            <input type="hidden" name="itemCode" value={current.itemCode} />
+            <input type="hidden" name="redirectTo" value="/items" />
+            <button className="danger-button" type="submit">Delete item</button>
+          </form>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="detail-layout">
+          <div className="detail-art" />
+          <div className="grid">
+            <span className={current.currentStock <= current.reorderPoint ? "status-pill warn" : "status-pill"}>
+              {current.currentStock <= current.reorderPoint ? "Reorder needed" : "Available"}
+            </span>
+            <h2 className="section-title">{current.itemCode} ? {current.name}</h2>
+            <div className="muted">{current.description || `Category: ${categoryLabel(current.category)}`}</div>
+            <div className="detail-grid">
+              <div className="mini-card"><div className="metric-label">Current stock</div><strong>{current.currentStock} {current.unit}</strong></div>
+              <div className="mini-card"><div className="metric-label">Reorder point</div><strong>{current.reorderPoint} {current.unit}</strong></div>
+              <div className="mini-card"><div className="metric-label">Price per unit</div><strong>{formatCurrency(current.price)}</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="content-grid">
+        <section className="panel">
+          <h2 className="section-title">Required materials</h2>
+          {current.recipes.length ? (
+            <ul className="recipe-list">
+              {current.recipes.map((entry) => (
+                <li key={entry.id}>
+                  <span>{entry.materialCode} ? {entry.materialName}</span>
+                  <strong>{entry.qtyRequired} {entry.unit}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="muted">This item has no recipe rows yet.</div>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2 className="section-title">Process steps</h2>
+          {current.steps.length ? (
+            <ol className="step-list">
+              {current.steps.map((step) => (
+                <li key={step.id}>{step.stepText}</li>
+              ))}
+            </ol>
+          ) : (
+            <div className="muted">This item has no process steps yet.</div>
+          )}
+        </section>
+      </section>
+    </AppShell>
+  );
 }

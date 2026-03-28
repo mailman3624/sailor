@@ -1,10 +1,81 @@
-﻿"use client";
-import { FormEvent } from "react";
-import { AppShell, ItemOptions, useComputed } from "@/components/app-shell";
-import { useInventory } from "@/components/inventory-provider";
-export default function ItemsPage() {
-  const { state, addItem, deleteItem } = useInventory();
-  const { metrics } = useComputed();
-  function onSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); const id = String(form.get("id") || "").trim().toUpperCase(); if (state.items.some((item) => item.id === id)) return alert("รหัสนี้มีอยู่แล้ว"); addItem({ id, name: String(form.get("name") || "").trim(), category: String(form.get("category") || "อุปกรณ์"), unit: String(form.get("unit") || "").trim(), openingStock: Number(form.get("openingStock") || 0), reorderPoint: Number(form.get("reorderPoint") || 0), price: Number(form.get("price") || 0), description: String(form.get("description") || "รายการที่เพิ่มใหม่") }); event.currentTarget.reset(); }
-  return <AppShell><section className="panel"><div className="section-head"><div><h2 className="section-title">จัดการรายการสินค้า</h2></div></div><form className="form-card" onSubmit={onSubmit}><div className="compact-grid"><div className="field"><label>รหัส</label><input name="id" required /></div><div className="field"><label>ชื่อรายการ</label><input name="name" required /></div><div className="field"><label>ประเภท</label><select name="category"><option>อุปกรณ์</option><option>วัตถุดิบ</option></select></div><div className="field"><label>หน่วย</label><input name="unit" required /></div><div className="field"><label>สต๊อกตั้งต้น</label><input name="openingStock" type="number" min="0" defaultValue="0" required /></div><div className="field"><label>จุดสั่งซื้อ</label><input name="reorderPoint" type="number" min="0" defaultValue="0" required /></div><div className="field"><label>ราคาต่อหน่วย</label><input name="price" type="number" min="0" defaultValue="0" required /></div><div className="field"><label>คำอธิบาย</label><input name="description" /></div></div><button className="primary-button" type="submit">เพิ่มรายการ</button></form></section><section className="content-grid"><section className="panel"><ItemOptions /></section><section className="panel"><div className="table-wrap"><table><thead><tr><th>รหัส</th><th>ชื่อ</th><th>คงเหลือ</th><th>จัดการ</th></tr></thead><tbody>{metrics.map((m) => <tr key={m.item.id}><td>{m.item.id}</td><td>{m.item.name}</td><td>{m.currentStock} {m.item.unit}</td><td><button className="danger-button" onClick={() => { if (confirm(`ลบ ${m.item.name} หรือไม่`)) deleteItem(m.item.id); }}>ลบ</button></td></tr>)}</tbody></table></div></section></section></AppShell>;
+import Link from "next/link";
+import { createItemAction, deleteItemAction } from "@/server/inventory/actions";
+import { AppShell, ItemOptions, categoryLabel, formatCurrency } from "@/features/inventory/components/app-shell";
+import { getItemSummaries } from "@/server/inventory/db";
+
+export const dynamic = "force-dynamic";
+
+export default async function ItemsPage() {
+  const items = await getItemSummaries();
+
+  return (
+    <AppShell currentPath="/items">
+      <section className="panel">
+        <div className="section-head">
+          <div>
+            <h2 className="section-title">Item master</h2>
+          </div>
+        </div>
+
+        <form className="form-card" action={createItemAction}>
+          <input type="hidden" name="redirectTo" value="/items" />
+          <div className="compact-grid">
+            <div className="field"><label>Code</label><input name="itemCode" required /></div>
+            <div className="field"><label>Name</label><input name="name" required /></div>
+            <div className="field"><label>Category</label><select name="category" defaultValue="equipment"><option value="equipment">Equipment</option><option value="material">Material</option></select></div>
+            <div className="field"><label>Unit</label><input name="unit" required /></div>
+            <div className="field"><label>Opening stock</label><input name="openingStock" type="number" min="0" defaultValue="0" required /></div>
+            <div className="field"><label>Reorder point</label><input name="reorderPoint" type="number" min="0" defaultValue="0" required /></div>
+            <div className="field"><label>Price per unit</label><input name="price" type="number" min="0" defaultValue="0" required /></div>
+            <div className="field"><label>Description</label><input name="description" /></div>
+          </div>
+          <button className="primary-button" type="submit">Create item</button>
+        </form>
+      </section>
+
+      <section className="content-grid">
+        <section className="panel">
+          <ItemOptions items={items} />
+        </section>
+
+        <section className="panel">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Current stock</th>
+                  <th>Price</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.itemCode}>
+                    <td>{item.itemCode}</td>
+                    <td>{item.name}</td>
+                    <td>{categoryLabel(item.category)}</td>
+                    <td>{item.currentStock} {item.unit}</td>
+                    <td>{formatCurrency(item.price)}</td>
+                    <td>
+                      <div className="button-row">
+                        <Link className="secondary-button" href={`/detail?item=${encodeURIComponent(item.itemCode)}`}>Open</Link>
+                        <form action={deleteItemAction}>
+                          <input type="hidden" name="itemCode" value={item.itemCode} />
+                          <input type="hidden" name="redirectTo" value="/items" />
+                          <button className="danger-button" type="submit">Delete</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </AppShell>
+  );
 }
